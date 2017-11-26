@@ -1,63 +1,62 @@
 #ifndef PID_H
 #define PID_H
-#include <vector>
-
 
 class PID {
 public:
-	/*
-	* Errors
-	*/
-	double p_error;
-	double i_error;
-	double d_error;
+  /*
+  * Errors
+  */
+  double p_error;
+  double i_error;
+  double d_error;
 
-	/*
-	* Coefficients
-	*/
-	double Kp;
-	double Ki;
-	double Kd;
+  /*
+  * Coefficients
+  */ 
+  double Kp;
+  double Ki;
+  double Kd;
 
-	/*
-	* Twiddle variables
-	*/
-	std::vector<double> dp;
-	int step, param_index;
-	// number of steps to allow changes to settle, then to evaluate error
-	int n_settle_steps, n_eval_steps;
-	double total_error, best_error;
-	bool tried_adding, tried_subtracting, yes_i_wanna_twiddle;
+  /*
+  * Twiddle Parameters
+  */
+  std::vector<double> p;
+  std::vector<double> dp;
+  bool isTwiddle, isAdd, isSub;
+  int step, p_index;
+  int settling_steps, eval_steps;
+  double err, best_error, thresh, dp_sum;
 
-	/*
-	* Constructor
-	*/
-	PID();
 
-	/*
-	* Destructor.
-	*/
-	virtual ~PID();
+  /*
+  * Constructor
+  */
+  PID();
 
-	/*
-	* Initialize PID.
-	*/
-	void Init(double Kp, double Ki, double Kd);
+  /*
+  * Destructor.
+  */
+  virtual ~PID();
 
-	/*
-	* Update the PID error variables given cross track error.
-	*/
-	void UpdateError(double cte);
+  /*
+  * Initialize PID.
+  */
+  void Init(double Kp, double Ki, double Kd);
 
-	/*
-	* Calculate the total PID error.
-	*/
-	double TotalError();
+  /*
+  * Update the PID error variables given cross track error.
+  */
+  void UpdateError(double cte);
 
-	/*
-	* Convenience function for adding amount (dp) to a PID controller parameter based on index
-	*/
-	void AddToParameterAtIndex(int index, double amount);
+  /*
+  * Calculate the total PID error.
+  */
+  double TotalError();
+
+  /*
+  * Add dp to PID parameters
+  */
+  void Add_dp(int index, double value);
 };
 
 #endif /* PID_H */

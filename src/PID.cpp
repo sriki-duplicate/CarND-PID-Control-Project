@@ -19,70 +19,114 @@ void PID::Init(double Kp, double Ki, double Kd) {
 	PID::Kd = Kd;
 	p_error = d_error = i_error = 0.0;
 
-	// Twiddling parameters
-	yes_i_wanna_twiddle = false;
-	dp = { 0.1*Kp,0.1*Kd,0.1*Ki };
+	// Twiddle parameters	
+	//dp = { 0.1*Kp,0.1*Kd,0.1*Ki };
+	p = { Kp, Kd, Ki };
+	dp = { Kp, Kd, Ki };
+	isTwiddle = false;
+	isAdd = false;
+	isSub = false;
 	step = 1;
-	param_index = 2;  // this will wrao back to 0 after the first twiddle loop
-	n_settle_steps = 100;
-	n_eval_steps = 2000;
-	total_error = 0;
+	p_index = 2; 
+	settling_steps = 100;
+	eval_steps = 200;
+	err = 0;
 	best_error = std::numeric_limits<double>::max();
-	tried_adding = false;
-	tried_subtracting = false;
+	thresh = 0.0001;
 }
 
 void PID::UpdateError(double cte) {
-	if (step == 1) {
-		// to get correct initial d_error
+
+	//Setting p_error to cte on step 1 here so the d_error doesn't start off big
+	if (step == 1)
 		p_error = cte;
-	}
+
+	//Setting the errors
 	d_error = cte - p_error;
 	p_error = cte;
 	i_error += cte;
 
-	// update total error only if we're past number of settle steps
-	if (step % (n_settle_steps + n_eval_steps) > n_settle_steps) {
-		total_error += pow(cte, 2);
-	}
+	//Based on the Parameter Optimization lecture video, we are using a settling period (100 steps) before we 
+	//update the total CTE
+	if (step % (settling_steps + eval_steps) > settling_steps)
+		err += pow(cte, 2);
 
-	// last step in twiddle loop... twiddle it?
-	if (yes_i_wanna_twiddle && step % (n_settle_steps + n_eval_steps) == 0) {
-		cout << "step: " << step << endl;
-		cout << "total error: " << total_error << endl;
-		cout << "best error: " << best_error << endl;
-		if (total_error < best_error) {
-			cout << "improvement!" << endl;
-			best_error = total_error;
-			if (step != n_settle_steps + n_eval_steps) {
-				// don't do this if it's the first time through
-				dp[param_index] *= 1.1;
+	//To arrive at optimized parameters, use Twiddle
+	//if (isTwiddle && step % (settling_steps + eval_steps) == 0)
+	//{
+	//	dp_sum = std::accumulate(dp.begin(), dp.end(), 0.0);
+	//	int dp_size = dp.size()
+	//		while (dp_sum > thresh)
+	//		{
+	//			for (size_t i = 0; i < dp; i++)
+	//			{
+	//				if (err < best_error)
+	//				{
+	//					best_error = err;
+	//					if (step != settling_steps + eval_steps)
+	//					{
+	//						dp[i] *= 1.1;
+	//					}
+	//					isAdd = false;
+	//					isSub - false;
+	//				}
+
+	//				if (!isAdd && !isSub)
+	//				{
+	//					p[i] += dp[i];
+	//					isAdd = true;
+	//				}
+	//				else if (isAdd && !isSub)
+	//				{
+	//					p[i] -= 2 * dp[i];
+	//					isSub = true;
+	//				}
+	//				else
+	//				{
+	//					p[i] += dp[i];
+	//					dp[i] *= 0.9;
+	//					isAdd = false;
+	//					isSub = false;
+	//				}
+	//			}
+	//			err = 0;
+	//		}
+	//}
+
+
+	if (isTwiddle && step % (settling_steps + eval_steps) == 0) {
+		cout << "Step: " << step << endl;
+		cout << "Total Error: " << err << endl;
+		cout << "Best eEror: " << best_error << endl;
+		if (err < best_error) {
+			best_error = err;
+			//Skip on step 1
+			if (step != settling_steps + eval_steps) {
+				dp[p_index] *= 1.1;
 			}
-			// next parameter
-			param_index = (param_index + 1) % 3;
-			tried_adding = tried_subtracting = false;
+			//Forgoing a best practice loop due to unaviability of current cte at this point and incrementing
+			//parameter index
+			p_index = (p_index + 1) % 3;
+			isAdd = false; 
+			isSub = false;
 		}
-		if (!tried_adding && !tried_subtracting) {
-			// try adding dp[i] to params[i]
-			AddToParameterAtIndex(param_index, dp[param_index]);
-			tried_adding = true;
+		if (!isAdd && !isSub) {			
+			Add_dp(p_index, dp[p_index]);
+			isAdd = true;
 		}
-		else if (tried_adding && !tried_subtracting) {
-			// try subtracting dp[i] from params[i]
-			AddToParameterAtIndex(param_index, -2 * dp[param_index]);
-			tried_subtracting = true;
+		else if (isAdd && !isSub) {
+			Add_dp(p_index, -2 * dp[p_index]);
+			isSub = true;
 		}
 		else {
-			// set it back, reduce dp[i], move on to next parameter
-			AddToParameterAtIndex(param_index, dp[param_index]);
-			dp[param_index] *= 0.9;
-			// next parameter
-			param_index = (param_index + 1) % 3;
-			tried_adding = tried_subtracting = false;
+			Add_dp(p_index, dp[p_index]);
+			dp[p_index] *= 0.9;
+			//Increment
+			p_index = (p_index + 1) % 3;
+			isAdd = false;
+			isSub = false;
 		}
-		total_error = 0;
-		cout << "new parameters" << endl;
-		cout << "P: " << Kp << ", I: " << Ki << ", D: " << Kd << endl;
+		err = 0;
 	}
 	step++;
 }
@@ -91,17 +135,14 @@ double PID::TotalError() {
 	return 0.0;  // ?
 }
 
-void PID::AddToParameterAtIndex(int index, double amount) {
+void PID::Add_dp(int index, double value) {
 	if (index == 0) {
-		Kp += amount;
+		Kp += value;
 	}
 	else if (index == 1) {
-		Kd += amount;
+		Kd += value;
 	}
 	else if (index == 2) {
-		Ki += amount;
-	}
-	else {
-		std::cout << "AddToParameterAtIndex: index out of bounds";
+		Ki += value;
 	}
 }

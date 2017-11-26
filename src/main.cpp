@@ -33,26 +33,16 @@ int main()
 {
 	uWS::Hub h;
 
-	// steering and throttle PID controllers
-	PID pid_s, pid_t;
+	PID pid, pid_s, pid_t;
 	// TODO: Initialize the pid variable.
-	//pid.Init(0.03, 0.5, 0.10);
+	//pid.Init(0, 0, 0);
+	//pid.Init(0.2, 0.004, 3.0);
+	//pid.Init(0.185, 0.003, 3.5);
+	//pid_s.Init(0.134611, 0.000270736, 3.05349);
+	//pid_t.Init(0.316731, 0.0000, 0.0226185);
+	pid_s.Init(0.1, 0.0002, 3.00);
+	pid_t.Init(0.3, 0.0000, 0.02);
 
-
-	//pid_s.Init(0.085, 0.0003, 1.35);
-	//pid_t.Init(0.2, 0.0000, 0.01);
-
-	// twiddle update - error: 803.649
-	//pid_s.Init(0.134611 0.000276054, 3.0903);
-	//pid_t.Init(0.316731, 0.0000, 0.0228911);
-
-	// twiddle update - error: 782.494 - max throttle 0.7
-	// pid_s.Init(0.134611, 0.000270736, 3.05349);
-	// pid_t.Init(0.316731, 0.0000, 0.0226185);
-
-	// twiddle update - error: ?? - max throttle 0.8
-	pid_s.Init(0.134611, 0.000270736, 3.05349);
-	pid_t.Init(0.316731, 0.0000, 0.0226185);
 
 	h.onMessage([&pid_s, &pid_t](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
 		// "42" at the start of the message means there's a websocket message event.
@@ -76,36 +66,28 @@ int main()
 					* NOTE: Feel free to play around with the throttle and speed. Maybe use
 					* another PID controller to control the speed!
 					*/
-
-					// update error and calculate steer_value at each step
+					//pid.UpdateError(cte);
 					pid_s.UpdateError(cte);
-					steer_value = -pid_s.Kp * pid_s.p_error
-						- pid_s.Kd * pid_s.d_error
-						- pid_s.Ki * pid_s.i_error;
+					steer_value = -pid.Kp * pid.p_error - pid.Kd * pid.d_error - pid.Ki * pid.i_error;
 
-					// update error and calculate throttle_value at each step
-					pid_t.UpdateError(fabs(cte));     // |cte|
-													  //pid_t.UpdateError(pow(cte, 2));   // cte^2
-					throttle_value = 0.75 - pid_t.Kp * pid_t.p_error
-						- pid_t.Kd * pid_t.d_error
-						- pid_t.Ki * pid_t.i_error;
+					//steer_value = pid.TotalError();
 
-					// DEBUG
-					/*
-					std::cout << "Steer value breakdown: " << std::endl;
-					std::cout << "P: " << - pid_s.Kp * pid_s.p_error << std::endl;
-					std::cout << "D: " << - pid_s.Kd * pid_s.d_error << std::endl;
-					std::cout << "I: " << - pid_s.Ki * pid_s.i_error << std::endl;
-					*/
+					//pid_s.UpdateError(cte);
+					//steer_value = -pid_s.Kp * pid_s.p_error - pid_s.Kd * pid_s.d_error - pid_s.Ki * pid_s.i_error;
+
+					pid_t.UpdateError(fabs(cte));
+					//throttle_value = 0.75 - pid_t.Kp * pid_t.p_error - pid_t.Kd * pid_t.d_error - pid_t.Ki * pid_t.i_error;
+					throttle_value = 0.80 - pid_t.Kp * pid_t.p_error - pid_t.Kd * pid_t.d_error - pid_t.Ki * pid_t.i_error;
 
 					// DEBUG
-					//std::cout << "CTE: " << cte << " Steering Value: " << steer_value << " Throttle Value: " << //throttle_value << std::endl;
+					std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
 
 					json msgJson;
 					msgJson["steering_angle"] = steer_value;
-					msgJson["throttle"] = throttle_value;
+					msgJson["throttle"] = throttle_value; // 0.3;
+					//msgJson["throttle"] = (1 - std::abs(steer_value)) * 0.5 + 0.2;
 					auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-					//std::cout << msg << std::endl;
+					std::cout << msg << std::endl;
 					ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 				}
 			}
