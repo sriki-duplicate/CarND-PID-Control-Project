@@ -18,6 +18,17 @@ public:
   double Kd;
 
   /*
+  * Twiddle Parameters
+  */
+  std::vector<double> p;
+  std::vector<double> dp;
+  int step, param_index;
+  int settling_steps, eval_steps;
+  double err, best_error, thresh, dp_sum;
+  bool isTwiddle, isAdd, isSub;
+
+
+  /*
   * Constructor
   */
   PID();
@@ -41,6 +52,11 @@ public:
   * Calculate the total PID error.
   */
   double TotalError();
+
+  /*
+  * Convenience function for adding amount (dp) to a PID controller parameter based on index
+  */
+  void AddToParameterAtIndex(int index, double amount);
 };
 
 #endif /* PID_H */
