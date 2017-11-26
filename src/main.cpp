@@ -68,7 +68,8 @@ int main()
 					*/
 					//pid.UpdateError(cte);
 					pid_s.UpdateError(cte);
-					steer_value = -pid.Kp * pid.p_error - pid.Kd * pid.d_error - pid.Ki * pid.i_error;
+					steer_value = -pid_s.Kp * pid_s.p_error - pid_s.Kd * pid_s.d_error - pid_s.Ki * pid_s.i_error;
+					//steer_value = -pid.Kp * pid.p_error - pid.Kd * pid.d_error - pid.Ki * pid.i_error;
 
 					//steer_value = pid.TotalError();
 
